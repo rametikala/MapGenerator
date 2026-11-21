@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spring terrain maps</title>
+<style>
+  :root {
+    --ink: #1c2b30;
+    --ink-soft: #52656b;
+    --paper: #f3f5f2;
+    --panel: #ffffff;
+    --line: #d3dbd7;
+    --water: #0e6a7c;
+    --water-dark: #0a5160;
+    --warn: #8a5a00;
+    --warn-bg: #fff4d6;
+    --err: #9b2226;
+    --err-bg: #fde8e8;
+    --contour: #c3d0cb;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e4ece9;
+      --ink-soft: #9db0aa;
+      --paper: #0f1a1d;
+      --panel: #16252a;
+      --line: #2b3f45;
+      --water: #4fb6c9;
+      --water-dark: #7fd0df;
+      --warn: #f0c36a;
+      --warn-bg: #3a2d10;
+      --err: #ff9a9d;
+      --err-bg: #3a1618;
+      --contour: #1f343a;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  body {
+    margin: 0; color: var(--ink); background: var(--paper);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    position: relative; overflow: hidden;
+    padding: 40px 24px 28px; border-bottom: 1px solid var(--line);
+  }
+  header svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  header .inner { position: relative; max-width: 1180px; margin: 0 auto; }
+  h1 {
+    margin: 0 0 6px; font: 600 clamp(28px, 4vw, 42px)/1.1 Georgia, "Iowan Old Style", serif;
+    letter-spacing: -0.01em;
+  }
+  header p { margin: 0; max-width: 62ch; color: var(--ink-soft); }
+  main {
+    max-width: 1180px; margin: 0 auto; padding: 24px;
+    display: grid; grid-template-columns: minmax(300px, 420px) 1fr; gap: 28px; align-items: start;
+  }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  form, .results {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 20px;
+  }
+  label { display: block; font-weight: 600; font-size: 14px; margin: 14px 0 4px; }
+  label:first-child { margin-top: 0; }
+  .hint { font-size: 13px; color: var(--ink-soft); margin: 4px 0 0; }
+  input[type=text], input[type=password], input[type=number], select, input[type=file] {
+    width: 100%; padding: 9px 10px; font: inherit; color: var(--ink);
+    background: var(--paper); border: 1px solid var(--line); border-radius: 6px;
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible, a:focus-visible {
+    outline: 3px solid var(--water); outline-offset: 2px;
+  }
+  .key-row { display: flex; gap: 8px; }
+  .key-row button { white-space: nowrap; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  .check { display: flex; gap: 8px; align-items: center; margin-top: 14px; font-weight: 600; font-size: 14px; }
+  .check input { width: 18px; height: 18px; }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 9px 14px;
+  }
+  button.primary {
+    width: 100%; margin-top: 20px; padding: 12px; border-color: var(--water);
+    background: var(--water); color: #fff;
+  }
+  @media (prefers-color-scheme: dark) { button.primary { color: #06262d; } }
+  button.primary:hover:not(:disabled) { background: var(--water-dark); }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  .notice {
+    margin-top: 16px; padding: 10px 12px; border-radius: 6px; font-size: 13px;
+    background: var(--warn-bg); color: var(--warn);
+  }
+  .alert { margin-bottom: 16px; padding: 12px 14px; border-radius: 6px; background: var(--err-bg); color: var(--err); font-weight: 600; }
+  .empty { color: var(--ink-soft); margin: 0; }
+  .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin: 10px 0 8px; }
+  .bar > div { height: 100%; width: 0; background: var(--water); transition: width .4s ease; }
+  .status { font-weight: 600; margin: 0; }
+  pre#log {
+    margin: 12px 0 0; padding: 12px; max-height: 190px; overflow: auto; white-space: pre-wrap;
+    font: 13px/1.45 ui-monospace, Menlo, Consolas, monospace;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 6px;
+  }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 6px; align-items: center; }
+  a.btn {
+    display: inline-block; text-decoration: none; font-weight: 600; font-size: 14px;
+    padding: 9px 14px; border-radius: 6px; border: 1px solid var(--line); color: var(--ink); background: var(--panel);
+  }
+  a.btn.primary { background: var(--water); border-color: var(--water); color: #fff; }
+  @media (prefers-color-scheme: dark) { a.btn.primary { color: #06262d; } }
+  .maps { display: grid; gap: 22px; margin-top: 18px; }
+  figure { margin: 0; }
+  figure img { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  figcaption { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; font-weight: 600; font-size: 14px; }
+  .hidden { display: none; }
+  @media (prefers-reduced-motion: reduce) { .bar > div { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <svg viewBox="0 0 1200 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <g fill="none" stroke="var(--contour)" stroke-width="1.4">
+      <path d="M-20 170 C 160 120, 300 190, 470 140 S 760 60, 920 110 S 1130 150, 1230 90"/>
+      <path d="M-20 150 C 170 100, 310 168, 470 120 S 760 40, 920 92 S 1130 130, 1230 72"/>
+      <path d="M-20 130 C 180 82, 320 146, 470 100 S 760 22, 920 74 S 1130 110, 1230 54"/>
+      <path d="M-20 110 C 190 64, 330 124, 470 80 S 760 4, 920 56 S 1130 90, 1230 36"/>
+      <path d="M-20 190 C 150 140, 290 212, 470 160 S 760 80, 920 128 S 1130 170, 1230 108"/>
+      <path d="M-20 210 C 140 160, 280 234, 470 180 S 760 100, 920 146 S 1130 190, 1230 126"/>
+    </g>
+  </svg>
+  <div class="inner">
+    <h1>Spring terrain maps</h1>
+    <p>Upload a boundary KML, set a contour interval, and get DEM, slope and aspect maps over satellite imagery.</p>
+  </div>
+</header>
+
+<main>
+  <form id="form" autocomplete="off">
+    <label for="spring_name">Spring / site name</label>
+    <input type="text" id="spring_name" name="spring_name" maxlength="80" placeholder="e.g. Dhara 3, Pamlatar">
+    <p class="hint">Added to every map title and to the ZIP file name.</p>
+
+    <label for="api_key">OpenTopography API key</label>
+    <div class="key-row">
+      <input type="password" id="api_key" name="api_key" required spellcheck="false" autocapitalize="off">
+      <button type="button" id="toggleKey" aria-pressed="false">Show</button>
+    </div>
+    <p class="hint">Free from portal.opentopography.org. Used for this run only and not stored.</p>
+
+    <label for="kml">Boundary file (.kml)</label>
+    <input type="file" id="kml" name="kml" accept=".kml" required>
+    <p class="hint">Must contain a polygon. KMZ is not supported; export as KML.</p>
+
+    <label for="interval">Contour interval (m)</label>
+    <input type="number" id="interval" name="interval" value="5" min="0.5" max="500" step="0.5">
+    <p class="hint">Drawn on the slope map.</p>
+
+    <details>
+      <summary>More settings</summary>
+      <div class="row2">
+        <div>
+          <label for="buffer">Buffer (m)</label>
+          <input type="number" id="buffer" name="buffer" value="200" min="0" max="2000" step="50">
+        </div>
+        <div>
+          <label for="subdivide">Upscale factor</label>
+          <input type="number" id="subdivide" name="subdivide" value="5" min="1" max="10" step="1">
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label for="dem_type">DEM source</label>
+          <select id="dem_type" name="dem_type">
+            {% for t in dem_types %}<option value="{{ t }}" {{ 'selected' if t == 'SRTMGL1' }}>{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="zoom">Basemap zoom</label>
+          <input type="number" id="zoom" name="zoom" value="18" min="10" max="19" step="1">
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" name="basemap" checked> Satellite basemap</label>
+    </details>
+
+    <p class="notice">Elevation data is 30 m resolution. Upscaling smooths it but adds no real detail, so contours finer than about 5 m reflect interpolation, not ground truth.</p>
+
+    <button type="submit" class="primary" id="go">Generate maps</button>
+  </form>
+
+  <section class="results" aria-live="polite">
+    <div id="err" class="alert hidden" role="alert"></div>
+    <p id="empty" class="empty">Maps will appear here after you generate them. A typical run takes one to three minutes.</p>
+
+    <div id="progress" class="hidden">
+      <p class="status" id="status">Queued</p>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="fill"></div></div>
+      <pre id="log"></pre>
+    </div>
+
+    <div id="done" class="hidden">
+      <div class="toolbar">
+        <a class="btn primary" id="zipLink" href="#">Download all (ZIP)</a>
+        <span id="rasters"></span>
+      </div>
+      <div class="maps" id="maps"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const form = $("form"), go = $("go");
+const labels = { "dem_plot.png": "Elevation (DEM)", "slope_plot.png": "Slope with contours", "aspect_plot.png": "Aspect" };
+const rasterLabels = { "cropped_dem.tif": "DEM GeoTIFF", "slope.tif": "Slope GeoTIFF", "aspect.tif": "Aspect GeoTIFF" };
+let timer = null;
+
+$("toggleKey").addEventListener("click", (e) => {
+  const input = $("api_key");
+  const show = input.type === "password";
+  input.type = show ? "text" : "password";
+  e.target.textContent = show ? "Hide" : "Show";
+  e.target.setAttribute("aria-pressed", String(show));
+});
+
+function showError(msg) {
+  $("err").textContent = msg;
+  $("err").classList.remove("hidden");
+}
+function resetView() {
+  $("err").classList.add("hidden");
+  $("empty").classList.add("hidden");
+  $("done").classList.add("hidden");
+  $("progress").classList.remove("hidden");
+  $("log").textContent = "";
+  $("fill").style.width = "0%";
+  $("maps").replaceChildren();
+  $("rasters").replaceChildren();
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (timer) clearTimeout(timer);
+  go.disabled = true; go.textContent = "Working…";
+  resetView();
+  try {
+    const res = await fetch("/api/jobs", { method: "POST", body: new FormData(form) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Request failed.");
+    poll(data.job_id, 0);
+  } catch (err) {
+    $("progress").classList.add("hidden");
+    showError(err.message);
+    finish();
+  }
+});
+
+function finish() { go.disabled = false; go.textContent = "Generate maps"; }
+
+async function poll(jobId, since) {
+  try {
+    const res = await fetch(`/api/jobs/${jobId}?since=${since}`);
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || "Lost contact with the server.");
+
+    if (d.log.length) {
+      const log = $("log");
+      log.textContent += (log.textContent ? "\n" : "") + d.log.join("\n");
+      log.scrollTop = log.scrollHeight;
+    }
+    $("fill").style.width = d.progress + "%";
+    document.querySelector(".bar").setAttribute("aria-valuenow", d.progress);
+    $("status").textContent = { queued: "Queued (another job is running)", running: "Generating…", done: "Finished", error: "Failed" }[d.status];
+
+    if (d.status === "done") { render(jobId, d); finish(); return; }
+    if (d.status === "error") { showError(d.error || "Something went wrong."); finish(); return; }
+    timer = setTimeout(() => poll(jobId, d.log_len), 1200);
+  } catch (err) {
+    showError(err.message); finish();
+  }
+}
+
+function render(jobId, d) {
+  $("progress").classList.add("hidden");
+  $("done").classList.remove("hidden");
+  $("zipLink").href = `/jobs/${jobId}/files/terrain_maps.zip`;
+
+  d.maps.forEach((name) => {
+    const url = `/jobs/${jobId}/files/${name}`;
+    const fig = document.createElement("figure");
+    const img = document.createElement("img");
+    img.src = url; img.alt = labels[name] || name; img.loading = "lazy";
+    const cap = document.createElement("figcaption");
+    const t = document.createElement("span"); t.textContent = labels[name] || name;
+    const a = document.createElement("a"); a.className = "btn"; a.href = url + "?dl=1"; a.textContent = "Download PNG";
+    cap.append(t, a); fig.append(img, cap);
+    $("maps").append(fig);
+  });
+  d.rasters.forEach((name) => {
+    const a = document.createElement("a");
+    a.className = "btn"; a.href = `/jobs/${jobId}/files/${name}?dl=1`; a.textContent = rasterLabels[name] || name;
+    $("rasters").append(a, " ");
+  });
+}
+</script>
+</body>
+</html>

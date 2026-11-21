@@ -1,0 +1,12 @@
+flask
+geopandas
+fiona
+rasterio
+mercantile
+matplotlib
+numpy
+pillow
+requests
+# GDAL (osgeo) must match your system libgdal. Easiest options:
+#   Ubuntu:  sudo apt install gdal-bin libgdal-dev python3-gdal
+#   conda:   conda install -c conda-forge gdal
