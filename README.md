@@ -66,7 +66,7 @@ Two design choices worth noting:
 
 ## Source code
 
-The full code is open on GitHub: [terrianMaps](https://github.com/rametikala/terrianMaps)
+The full code is open on GitHub: [terrianMaps](https://github.com/rametikala/MapGenerator)
 
 - `terrain_maps.py`: the map-generation pipeline, usable from the command line
 - `app.py` and `templates/index.html`: the web interface
